@@ -26,7 +26,7 @@ TRAINERS_START = 0X020262DD
 POKEMON_FONT = "pokemon-gen-4-regular.ttf"
 INPUT_FILE = "pokemonData.txt"
 SPRITE_FOLDER = "sprites"
-POKEMONSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon"
+POKEMONICONSSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon-icons"
 ITEMSPRITE_FOLDER = SPRITE_FOLDER + "/items"
 TRAINERSPRITE_FOLDER = SPRITE_FOLDER + "/trainers"
 BACKGROUNDPRITE_FOLDER = SPRITE_FOLDER + "/background"
@@ -211,9 +211,9 @@ def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelC
             continue
 
         # Retrieve Pokémon sprite (default sprite : Pokéball)
-        pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, f"{pokemonData.pokedexId}.png")
+        pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, f"{pokemonData.pokedexId}.png")
         if not os.path.exists(pokemonSpritePath):
-            pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, "0.png")
+            pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, "0.png")
 
         # Retrieve and resize Pokémon sprite to 80x60 so items can appear small without sizing them down
         pokemonSprite = Image.open(pokemonSpritePath).convert("RGBA").resize((POKEMON_SPRITE_WIDTH, POKEMON_SPRITE_HEIGHT), Image.NEAREST)
@@ -308,9 +308,9 @@ def generateTrainerCard(trainer):
 
         # Retrieve Pokémon sprite from pokedexId and display it
         if (pokedexId):
-            pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, f"{pokedexId}.png")
+            pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, f"{pokedexId}.png")
             if not os.path.exists(pokemonSpritePath):
-                pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, "0.png")
+                pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, "0.png")
 
             pokemonSprites.append(Image.open(pokemonSpritePath).convert("RGBA").resize((TRAINER_POKEMON_SPRITE_WIDTH, TRAINER_POKEMON_SPRITE_HEIGHT), Image.NEAREST))
         else:

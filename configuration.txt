@@ -1,7 +1,7 @@
 -- 1 to enable, 0 to disable --
 
 -- Party, Box, Dead
-DISPLAY_SPRITE_LEVELUP=1
+DISPLAY_SPRITE_LEVELUP=0
 DISPLAY_SPRITE_ITEMS=1
 
 -- Trainer Card
@@ -31,7 +31,7 @@ ELITE_FOUR_DRAKE_TEAM=Doubles
 --    1 : Starter Pack (Route 101 + Route 102 + Route 103)
 --    2 : Myokara (default)
 --    3 : Route 110
-ZONE_START_RUN_TRACKING=2
+ZONE_START_RUN_TRACKING=1
 
 -- FR for French, EN for English
 LANG=EN
