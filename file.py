@@ -4,7 +4,7 @@ import json
 import orjson
 
 TEMPOUTPUT_FOLDER = ".tmp"
-OUTPUT_FOLDER = "outputImage"
+OUTPUT_FOLDER = "output"
 CONF_FILE = "configuration.txt"
 RUNS_FILE = "runsHistory.json"
 
@@ -18,13 +18,31 @@ def safeReadFile(path):
 
 
 # Write file safely even if used by OBS
-def safeWriteFile(image, fileName):
+def safeWriteImage(image, fileName):
 
     # Save final image in .tmp folder to avoid OBS reading partially written image
     tempOutputPath = os.path.join(TEMPOUTPUT_FOLDER, f"{fileName.lower()}.png")
     outputPath = os.path.join(OUTPUT_FOLDER, f"{fileName.lower()}.png")
     image.save(tempOutputPath, "PNG")
     image.close()
+
+    # Swap temp image and output image
+    try:
+        os.replace(tempOutputPath, outputPath)
+
+    # PermissionError errors might occur because OBS is reading the image, don't print those
+    except PermissionError:
+        pass
+        
+def safeWriteText(text, fileName):
+
+    # Save final image in .tmp folder to avoid OBS reading partially written image
+    
+    tempOutputPath = os.path.join(TEMPOUTPUT_FOLDER, f"{fileName.lower()}.txt")
+    outputPath = os.path.join(OUTPUT_FOLDER, f"{fileName.lower()}.txt")
+    with open(tempOutputPath, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.close()
 
     # Swap temp image and output image
     try:

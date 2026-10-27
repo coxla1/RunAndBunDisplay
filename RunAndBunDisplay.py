@@ -250,7 +250,7 @@ def generatePlayerBoxesImage(label, pokemonList, columnNumber, rowNumber, levelC
             outputImage.paste(levelUpSprite, (x + LEVELUP_X_POSITION, y + LEVELUP_Y_POSITION + LEVELUP_CLOCK), levelUpSprite)
 
     # Save final image in output folder
-    file.safeWriteFile(outputImage, label)
+    file.safeWriteImage(outputImage, label)
 
 
 # Create images from Pokémon sprites
@@ -323,7 +323,7 @@ def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelC
             outputImage.paste(levelUpSprite, (x + LEVELUP_X_POSITION, y + LEVELUP_Y_POSITION + LEVELUP_CLOCK), levelUpSprite)
 
     # Save final image in output folder
-    file.safeWriteFile(outputImage, label)
+    file.safeWriteImage(outputImage, label)
 
 
 
@@ -423,32 +423,27 @@ def generateTrainerCard(trainer):
                 outputImage.paste(itemSprites[i], (x,y), itemSprites[i])
 
     # Save image in output folder
-    file.safeWriteFile(outputImage, "trainer")
+    file.safeWriteImage(outputImage, "trainer")
 
 
-def generateMovesImage(fileName, moveList):
+def generateMovesText(fileName, moveList, opponentIndex, numberOfOpponents):
     lang = getLang()
-
-    ppImage = Image.new("RGBA", (MOVES_IMAGE_WIDTH, MOVES_IMAGE_HEIGHT), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(ppImage)
-    font = ImageFont.truetype(POKEMON_FONT, 40)
+    positions = ["PPs restants à droite\n", "PPs restants à gauche\n"]
+    
+    if moveList:
+        ppText = positions[opponentIndex] if numberOfOpponents > 1 else "PPs restants\n"
+    else:
+        ppText = ""
 
     # Generate an image with each move and remaining PP
     for i in range(len(moveList)):
         moveId, ppLeft = int(moveList[i][0]), moveList[i][1]
 
         if (moveId):
-            draw.text(
-                (20, 8 + i * (60)),
-                f"PP {MOVE_NAMES[lang][moveId]} : {ppLeft}",
-                font = font,
-                fill = (255,255,255,255),
-                stroke_fill = (0,0,0,255),
-                stroke_width = 5
-            )
+            ppText += f"{MOVE_NAMES[lang][moveId]} - {ppLeft}\n"
 
     # Save image in output folder
-    file.safeWriteFile(ppImage, fileName)
+    file.safeWriteText(ppText, fileName)
 
 
 def generateBuffsImage(fileName, buffsList):
@@ -503,7 +498,7 @@ def generateBuffsImage(fileName, buffsList):
             statId += 1
 
     # Save image in output folder
-    file.safeWriteFile(buffImage, fileName)
+    file.safeWriteImage(buffImage, fileName)
 
 
 # Retrieve trainer data to determine who has been beaten and who is next
@@ -965,6 +960,7 @@ def mainLoop():
     boxClock = 0 # Alternate between every box every 5 seconds
     boxDisplayTime = 5 # Default : 5 seconds
     boxNumber = 0 # Track which box we're currently displaying
+    opponentIndex = 0 # Track which opponent we're currently displaying
     BUFFER_UPLOAD_CLOCK = 0 # Upload all data retrieved in a minute to Google Sheets API
 
     while True:
@@ -1012,6 +1008,14 @@ def mainLoop():
 
                     elif line.startswith("OPPONENTMOVES"):
                         opponentMoves = parseLine(line)
+                        numberOfOpponents = int(len(opponentMoves) / 4) if opponentMoves else 1
+                        
+                        # 5th second : switch opponent
+                        if (boxClock == boxDisplayTime - 1):
+                            opponentIndex = (1 - opponentIndex) % numberOfOpponents
+                        
+                        lowBound, highBound = 4*opponentIndex, min(4*(opponentIndex + 1), len(opponentMoves))
+                        opponentLine = opponentMoves[lowBound : highBound]
                     
                     elif line.startswith("PARTY"):
                         partyLine = parseLine(line)
@@ -1034,8 +1038,7 @@ def mainLoop():
                 generatePlayerBoxesImage("dead", deadLine, columnNumber, rowNumber, customSize = True)
 
                 # Generate opponent moves and PP left if in battle
-                generateMovesImage("moves-opponent-1", opponentMoves[:4])
-                generateMovesImage("moves-opponent-2", opponentMoves[4:])
+                generateMovesText("moves-opponent", opponentLine, opponentIndex, numberOfOpponents)
 
                 # Generate buffs/debuffs for player and opponent in battle
                 generateBuffsImage("buffs-opponent-1", opponentBuffs[:7])
