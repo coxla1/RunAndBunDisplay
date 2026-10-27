@@ -26,6 +26,7 @@ TRAINERS_START = 0X020262DD
 POKEMON_FONT = "pokemon-gen-4-regular.ttf"
 INPUT_FILE = "pokemonData.txt"
 SPRITE_FOLDER = "sprites"
+POKEMONSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon"
 POKEMONICONSSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon-icons"
 ITEMSPRITE_FOLDER = SPRITE_FOLDER + "/items"
 TRAINERSPRITE_FOLDER = SPRITE_FOLDER + "/trainers"
@@ -54,6 +55,15 @@ ZONES_START_TRACKING = [
     ["Dewford Town", "Route 106", "Route 107"],
     ["Route 110"]
 ]
+
+PARTY_SPRITE_SIZE = 96
+PARTY_ITEMS_SPRITE_SIZE = 32
+PARTY_TOTAL_WIDTH = 112
+PARTY_TOTAL_HEIGHT = 810
+PARTY_TOP_BOTTOM_SPACER = 104 // 2
+PARTY_BETWEEN_SPRITES_SPACER = (PARTY_TOTAL_HEIGHT - PARTY_TOP_BOTTOM_SPACER * 2 - PARTY_SPRITE_SIZE * 6) // 5
+PARTY_ITEM_X_POSITION = 64
+PARTY_ITEM_Y_POSITION = 56
 
 POKEMON_SPRITE_WIDTH = 80
 POKEMON_SPRITE_HEIGHT = 60
@@ -183,10 +193,8 @@ def parseLine(line):
 
     return parsedLine
 
-
-
-# Create images from Pokémon sprites
-def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelCap = None, customSize = None):
+# Create images for boxes from Pokémon sprites
+def generatePlayerBoxesImage(label, pokemonList, columnNumber, rowNumber, levelCap = None, customSize = None):
 
     # Retrieve conf file content to check user preferences
     configuration = file.readConfFile()
@@ -236,6 +244,79 @@ def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelC
             # Display item sprite
             itemSprite = Image.open(itemPath).convert("RGBA").resize((ITEMS_SPRITE_SIZE, ITEMS_SPRITE_SIZE), Image.NEAREST)
             outputImage.paste(itemSprite, (x + ITEM_X_POSITION, y + ITEM_Y_POSITION), itemSprite)
+
+        # Display level up sprite if current level is lower than level cap
+        if (configuration[DISPLAY_SPRITE_LEVELUP] and levelCap and pokemonData.level < int(levelCap)):
+            outputImage.paste(levelUpSprite, (x + LEVELUP_X_POSITION, y + LEVELUP_Y_POSITION + LEVELUP_CLOCK), levelUpSprite)
+
+    # Save final image in output folder
+    file.safeWriteFile(outputImage, label)
+
+
+# Create images from Pokémon sprites
+def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelCap = None, customSize = None):
+
+    # Retrieve conf file content to check user preferences
+    configuration = file.readConfFile()
+
+    # Remove None Pokemon for custom sizes
+    if (customSize):
+        pokemonList = [pokemonData for pokemonData in pokemonList if pokemonData]
+
+    # Initialise transparent image
+    imageWidth = PARTY_TOTAL_WIDTH
+    imageHeight = PARTY_TOTAL_HEIGHT
+    outputImage = Image.new("RGBA", (imageWidth, imageHeight), (0,0,0,0))
+
+    # Retrieve level up sprite if needed
+    if (configuration[DISPLAY_SPRITE_LEVELUP] and levelCap):
+        levelUpPath = os.path.join(MISCSPRITE_FOLDER, "levelup.png")
+        levelUpSprite = Image.open(levelUpPath).convert("RGBA").resize((LEVEL_UP_SPRITE_SIZE, LEVEL_UP_SPRITE_SIZE), Image.NEAREST)
+
+    pokeballSpritePath = os.path.join(POKEMONSPRITE_FOLDER, "pokeball.png")
+    pokeballSprite = Image.open(pokeballSpritePath).convert("RGBA")
+    
+    circleSpritePath = os.path.join(ITEMSPRITE_FOLDER, "circle.png")
+    circleSprite = Image.open(circleSpritePath).convert("RGBA")
+
+    # Iterate on each non-None Pokémon
+    for i, pokemonData in enumerate(pokemonList):
+        if pokemonData is None:
+            continue
+
+        # Retrieve Pokémon sprite (default sprite : Pokéball)
+        pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, f"{pokemonData.pokedexId}.png")
+        if not os.path.exists(pokemonSpritePath):
+            pokemonSpritePath = os.path.join(POKEMONSPRITE_FOLDER, "0.png")
+
+        # Retrieve and resize Pokémon sprite to 80x60 so items can appear small without sizing them down
+        pokemonSprite = Image.open(pokemonSpritePath).convert("RGBA").resize((PARTY_SPRITE_SIZE, PARTY_SPRITE_SIZE), Image.NEAREST)
+
+        # Compute Pokémon sprite position with spacing (sligh overlap between sprites so they appear closer)
+        x = (imageWidth - PARTY_SPRITE_SIZE) // 2
+        y = PARTY_TOP_BOTTOM_SPACER + i * (PARTY_SPRITE_SIZE + PARTY_BETWEEN_SPRITES_SPACER)
+
+
+        # Display ground sprite
+        # NOTE: 62 = 96 - 34, which is ground size, and 2px are added so giant sprites look better
+        # outputImage.paste(groundSprite, (0, y + 62), groundSprite)
+
+        # Display Pokémon sprite
+        outputImage.paste(pokeballSprite, (x - 8, y - 8), pokeballSprite)
+        outputImage.paste(pokemonSprite, (x, y), pokemonSprite)
+
+        # Display held item
+        if (configuration[DISPLAY_SPRITE_ITEMS] and int(pokemonData.itemId)):
+
+            # Retrieve item sprite (default sprite : blank item)
+            itemPath = os.path.join(ITEMSPRITE_FOLDER, f"{pokemonData.itemId}.png")
+            if not os.path.exists(itemPath):
+                itemPath = os.path.join(ITEMSPRITE_FOLDER, "0.png")
+
+            # Display item sprite
+            itemSprite = Image.open(itemPath).convert("RGBA").resize((PARTY_ITEMS_SPRITE_SIZE, PARTY_ITEMS_SPRITE_SIZE), Image.NEAREST)
+            outputImage.paste(circleSprite, (x + PARTY_ITEM_X_POSITION - 2, y + PARTY_ITEM_Y_POSITION - 2), circleSprite)
+            outputImage.paste(itemSprite, (x + PARTY_ITEM_X_POSITION, y + PARTY_ITEM_Y_POSITION), itemSprite)
 
         # Display level up sprite if current level is lower than level cap
         if (configuration[DISPLAY_SPRITE_LEVELUP] and levelCap and pokemonData.level < int(levelCap)):
@@ -949,8 +1030,8 @@ def mainLoop():
 
                 # Create png images from parsed data
                 generatePlayerPartyImage("party", partyLine, 6, 1, levelCap = levelCap)
-                generatePlayerPartyImage("box", boxLine, 6, 5, levelCap = levelCap)
-                generatePlayerPartyImage("dead", deadLine, columnNumber, rowNumber, customSize = True)
+                generatePlayerBoxesImage("box", boxLine, 6, 5, levelCap = levelCap)
+                generatePlayerBoxesImage("dead", deadLine, columnNumber, rowNumber, customSize = True)
 
                 # Generate opponent moves and PP left if in battle
                 generateMovesImage("moves-opponent-1", opponentMoves[:4])
