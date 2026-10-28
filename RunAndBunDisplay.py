@@ -27,8 +27,9 @@ POKEMON_FONT = "pokemon-gen-4-regular.ttf"
 INPUT_FILE = "pokemonData.txt"
 SPRITE_FOLDER = "sprites"
 POKEMONSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon"
-POKEMONICONSSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon-icons"
+POKEMONICONSPRITE_FOLDER = SPRITE_FOLDER + "/pokemon-icons"
 ITEMSPRITE_FOLDER = SPRITE_FOLDER + "/items"
+BADGEIMAGE_FOLDER = SPRITE_FOLDER + "/badges"
 TRAINERSPRITE_FOLDER = SPRITE_FOLDER + "/trainers"
 BACKGROUNDPRITE_FOLDER = SPRITE_FOLDER + "/background"
 MISCSPRITE_FOLDER = SPRITE_FOLDER + "/misc"
@@ -78,6 +79,12 @@ LEVELUP_Y_POSITION = 4
 
 SPACING_X = -30
 SPACING_Y = -10
+
+BADGE_IMAGE_SIZE = 96
+BADGE_TOTAL_WIDTH = 112
+BADGE_TOTAL_HEIGHT = 810
+BADGE_TOP_BOTTOM_SPACER = 0
+BADGE_BETWEEN_IMAGES_SPACER = (BADGE_TOTAL_HEIGHT - BADGE_TOP_BOTTOM_SPACER * 2 - BADGE_IMAGE_SIZE * 8) // 7
 
 TRAINER_SPRITE_SIZE = 256
 TRAINER_SMALL_SPRITE_SIZE = 192
@@ -219,9 +226,9 @@ def generatePlayerBoxesImage(label, pokemonList, columnNumber, rowNumber, levelC
             continue
 
         # Retrieve Pokémon sprite (default sprite : Pokéball)
-        pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, f"{pokemonData.pokedexId}.png")
+        pokemonSpritePath = os.path.join(POKEMONICONSPRITE_FOLDER, f"{pokemonData.pokedexId}.png")
         if not os.path.exists(pokemonSpritePath):
-            pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, "0.png")
+            pokemonSpritePath = os.path.join(POKEMONICONSPRITE_FOLDER, "0.png")
 
         # Retrieve and resize Pokémon sprite to 80x60 so items can appear small without sizing them down
         pokemonSprite = Image.open(pokemonSpritePath).convert("RGBA").resize((POKEMON_SPRITE_WIDTH, POKEMON_SPRITE_HEIGHT), Image.NEAREST)
@@ -326,6 +333,34 @@ def generatePlayerPartyImage(label, pokemonList, columnNumber, rowNumber, levelC
     file.safeWriteImage(outputImage, label)
 
 
+# Generate an image displaying the currently owned badges
+def generateBadgesImage(gymBadges):
+    # Initialise transparent image
+    imageWidth = BADGE_TOTAL_WIDTH
+    imageHeight = BADGE_TOTAL_HEIGHT
+    outputImage = Image.new("RGBA", (imageWidth, imageHeight), (0,0,0,0))
+
+    # Iterate on each badge
+    for i in range(8):
+        # Retrieve badge image
+        badgeImagePath = os.path.join(BADGEIMAGE_FOLDER, f"{i+1}.png")
+
+        # Retrieve and resize Pokémon sprite to 80x60 so items can appear small without sizing them down
+        badgeImage = Image.open(badgeImagePath).convert("RGBA").resize((BADGE_IMAGE_SIZE, BADGE_IMAGE_SIZE), Image.LANCZOS)
+
+        # Compute Pokémon sprite position with spacing (sligh overlap between sprites so they appear closer)
+        x = (imageWidth - BADGE_IMAGE_SIZE) // 2
+        y = BADGE_TOP_BOTTOM_SPACER + i * (BADGE_IMAGE_SIZE + BADGE_BETWEEN_IMAGES_SPACER)
+
+        mask = badgeImage.split()[3]
+        if i+1 > gymBadges:
+            badgeImage = badgeImage.convert("L")
+            
+        outputImage.paste(badgeImage, (x, y), mask)
+
+    # Save final image in output folder
+    file.safeWriteImage(outputImage, "badges")
+
 
 # Generate an image displaying the trainer sprite, Pokémon team and items
 def generateTrainerCard(trainer):
@@ -389,9 +424,9 @@ def generateTrainerCard(trainer):
 
         # Retrieve Pokémon sprite from pokedexId and display it
         if (pokedexId):
-            pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, f"{pokedexId}.png")
+            pokemonSpritePath = os.path.join(POKEMONICONSPRITE_FOLDER, f"{pokedexId}.png")
             if not os.path.exists(pokemonSpritePath):
-                pokemonSpritePath = os.path.join(POKEMONICONSSPRITE_FOLDER, "0.png")
+                pokemonSpritePath = os.path.join(POKEMONICONSPRITE_FOLDER, "0.png")
 
             pokemonSprites.append(Image.open(pokemonSpritePath).convert("RGBA").resize((TRAINER_POKEMON_SPRITE_WIDTH, TRAINER_POKEMON_SPRITE_HEIGHT), Image.NEAREST))
         else:
@@ -428,10 +463,17 @@ def generateTrainerCard(trainer):
 
 def generateMovesText(fileName, moveList, opponentIndex, numberOfOpponents):
     lang = getLang()
-    positions = ["PPs restants à droite\n", "PPs restants à gauche\n"]
+    doubleText = {
+        "EN": ["Remaining PPs (right)\n", "Remaining PPs (left)\n"],
+        "FR": ["PPs restants à droite\n", "PPs restants à gauche\n"],
+    }
+    singleText = {
+        "EN": "Remaining PPs\n",
+        "FR": "PPs restants\n",
+    }
     
     if moveList:
-        ppText = positions[opponentIndex] if numberOfOpponents > 1 else "PPs restants\n"
+        ppText = doubleText[lang][opponentIndex] if numberOfOpponents > 1 else singleText[lang]
     else:
         ppText = ""
 
@@ -696,7 +738,7 @@ def updateOldRunsEndDate(currentRunId, currentTime):
 
 
 # Save each update in a buffer that is uploaded every minute
-def updateRunBuffer(fullDataLine, wonBattles, gymBadges, lastDefeatedTrainer):
+def updateRunBuffer(fullDataLine, wonBattles, gymBadges, lastDefeatedTrainer, levelCap):
     global runBuffer
     currentPokemon = {}
     configuration = file.readConfFile()
@@ -811,6 +853,8 @@ def updateRunBuffer(fullDataLine, wonBattles, gymBadges, lastDefeatedTrainer):
                     "trainerTeam": lastDefeatedTrainer.pokemonTeam
                 }
             }
+            
+            file.safeWriteText(f"Attempt #{runNumber}\nDeaths: {deadPokemon}\nLevel cap: {levelCap}\n", "info")
 
             # Check which run parameter has been updated
             for parameterName, parameterValue in currentRunData.items():
@@ -1046,8 +1090,11 @@ def mainLoop():
                 generateBuffsImage("buffs-player-1", partyBuffs[:7])
                 generateBuffsImage("buffs-player-2", partyBuffs[7:])
 
+                # Generate badges image
+                generateBadgesImage(gymBadges)
+
                 # Track every update performed in-game (new battle, level up, )
-                updateRunBuffer(fullDataLine, wonBattles, gymBadges, lastDefeatedTrainer)
+                updateRunBuffer(fullDataLine, wonBattles, gymBadges, lastDefeatedTrainer, levelCap)
             
                 # Once every minute, upload buffer to RunAndBunStats API
                 if (BUFFER_UPLOAD_CLOCK == 0):
