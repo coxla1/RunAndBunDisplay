@@ -99,7 +99,7 @@ def saveRuns(runsData):
 # Read keys inside .key file to contact RunAndBunStats
 def loadKeys():
 
-    # Find all .key files in the 
+    # Find all .key files in the directory
     keyFiles = [f for f in os.listdir(".") if f.endswith(".key")]
     if not keyFiles:
         return None
